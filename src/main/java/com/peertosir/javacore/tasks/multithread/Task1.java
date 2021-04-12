@@ -1,59 +1,74 @@
 package com.peertosir.javacore.tasks.multithread;
 
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.locks.ReentrantLock;
 
 public class Task1 {
     public static void main(String[] args) {
-        ReentrantLock lock = new ReentrantLock();
         Foo foo = new Foo();
+        Runnable printFirst = () -> System.out.println("first");
+        Runnable printSecond = () -> System.out.println("second");
+        Runnable printThird = () -> System.out.println("third");
 
-        new Task1Thread(lock, foo);
-        new Task1Thread(lock, foo);
-        new Task1Thread(lock, foo);
+        Thread t1 = new Thread(() -> foo.first(printFirst));
+
+
+        Thread t3 = new Thread(() -> foo.third(printThird));
+        Thread t2 = new Thread(() -> foo.second(printSecond));
+
+        try {
+            Thread.sleep(1000);
+            t2.start();
+        } catch (InterruptedException ex) {
+            System.out.println(ex);
+        }
+
+        t1.start();
+
+        t3.start();
+
+
     }
 }
 
 class Foo {
 
-    public void first() {
-        System.out.println("first");
-    }
-    public void second() {
-        System.out.println("second");
-    }
-    public void third() {
-        System.out.println("third");
-    }
-}
+    private final Semaphore semFirst;
+    private final Semaphore semSecond;
+    private final Semaphore semThird;
 
-class Task1Thread implements Runnable {
-
-    static int order = 1;
-    ReentrantLock lock;
-    Foo foo;
-
-    public Task1Thread(ReentrantLock lock, Foo foo) {
-        this.lock = lock;
-        this.foo = foo;
-        new Thread(this).start();
+    public Foo() {
+        semFirst = new Semaphore(1);
+        semSecond = new Semaphore(0);
+        semThird = new Semaphore(0);
     }
 
-    @Override
-    public void run() {
-        lock.lock();
-        switch (order) {
-            case 1:
-                foo.first();
-                break;
-            case 2:
-                foo.second();
-                break;
-            case 3:
-                foo.third();
-                break;
+    public void first(Runnable r) {
+        try {
+            semFirst.acquire();
+            r.run();
+        } catch (InterruptedException ex) {
+            System.out.println(ex);
         }
-        order++;
-        lock.unlock();
+        semSecond.release();
+    }
+    public void second(Runnable r) {
+        try {
+            semSecond.acquire();
+            r.run();
+        } catch (InterruptedException ex) {
+            System.out.println(ex);
+        }
+        semThird.release();
+    }
+    public void third(Runnable r) {
+        try {
+            semThird.acquire();
+            r.run();
+        } catch (InterruptedException ex) {
+            System.out.println(ex);
+        }
+        semFirst.release();
     }
 }
